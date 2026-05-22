@@ -610,10 +610,12 @@
       if (mode === "control" && remainingSeconds <= 60 && remainingSeconds > 0 && !notified60) {
         notified60 = true;
         notify("⏰ Minuta do końca!", "Zostało mniej niż 60 sekund.");
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
       }
       if (mode === "control" && remainingSeconds <= 0 && !notified0) {
         notified0 = true;
         notify("🔔 Czas minął!", "Timer dobiegł końca.");
+        if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500, 200, 500]);
         stopTick();
       }
     }, 250); // update 4x/sec for smooth display
