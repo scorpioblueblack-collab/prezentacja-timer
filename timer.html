@@ -29,7 +29,6 @@
     overflow: hidden;
   }
 
-  /* ===== DISPLAY MODE ===== */
   #display-mode {
     display: none;
     width: 100vw;
@@ -96,24 +95,6 @@
   }
   .fullscreen-btn:hover { border-color: var(--muted); color: var(--text); }
 
-  .qr-area {
-    position: absolute;
-    bottom: 24px;
-    right: 24px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 8px;
-  }
-
-  .qr-label {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
-
-  /* ===== CONTROL MODE ===== */
   #control-mode {
     display: none;
     width: 100vw;
@@ -149,7 +130,6 @@
   }
   .ctrl-status-dot.connected { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
 
-  /* Big time display on controller */
   .ctrl-time-display {
     font-family: 'DM Mono', monospace;
     font-size: clamp(64px, 18vw, 100px);
@@ -163,7 +143,6 @@
   .ctrl-time-display.warn { color: var(--warn); }
   .ctrl-time-display.danger { color: var(--danger); }
 
-  /* Progress bar */
   .ctrl-progress-wrap {
     width: 100%;
     height: 6px;
@@ -179,7 +158,6 @@
     width: 100%;
   }
 
-  /* Preset buttons */
   .section-label {
     font-size: 11px;
     font-weight: 500;
@@ -210,7 +188,6 @@
   }
   .preset-btn:active { background: var(--accent); color: #000; border-color: var(--accent); transform: scale(0.96); }
 
-  /* Custom time input */
   .custom-input-row {
     display: flex;
     gap: 8px;
@@ -281,7 +258,6 @@
   }
   .set-btn:active { background: var(--accent-dim); transform: scale(0.96); }
 
-  /* Main controls */
   .main-controls {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -324,16 +300,13 @@
     border-color: var(--border);
     color: var(--muted);
   }
-  .btn-reset:active { border-color: var(--text); color: var(--text); }
 
   .btn-plus {
     background: var(--surface);
     border-color: var(--border);
     color: var(--text);
   }
-  .btn-plus:active { border-color: var(--accent); color: var(--accent); }
 
-  /* Connecting overlay */
   #connecting {
     position: fixed;
     inset: 0;
@@ -364,7 +337,6 @@
     text-transform: uppercase;
   }
 
-  /* Mode selector (landing) */
   #mode-select {
     display: flex;
     width: 100vw;
@@ -414,13 +386,11 @@
 </head>
 <body>
 
-<!-- Connecting overlay -->
 <div id="connecting">
   <div class="spinner"></div>
   <div class="connecting-text">Łączenie z Firebase…</div>
 </div>
 
-<!-- Mode select (if no ?mode param) -->
 <div id="mode-select" style="display:none">
   <div class="mode-title">Timer · Prezentacja</div>
   <div class="mode-buttons">
@@ -435,22 +405,20 @@
   </div>
 </div>
 
-<!-- DISPLAY MODE -->
 <div id="display-mode">
   <div class="display-progress" id="display-progress"></div>
-  <div class="display-time" id="display-time">00:00</div>
+  <div class="display-time" id="display-time">--:--</div>
   <div class="display-status" id="display-status">GOTOWY</div>
   <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ PEŁNY EKRAN</button>
 </div>
 
-<!-- CONTROL MODE -->
 <div id="control-mode">
   <div class="ctrl-header">
     <div class="ctrl-title">Timer · Pilot</div>
     <div class="ctrl-status-dot" id="status-dot"></div>
   </div>
 
-  <div class="ctrl-time-display" id="ctrl-time">00:00</div>
+  <div class="ctrl-time-display" id="ctrl-time">--:--</div>
 
   <div class="ctrl-progress-wrap">
     <div class="ctrl-progress-bar" id="ctrl-progress"></div>
@@ -489,18 +457,15 @@
   </div>
 
   <div class="main-controls">
-    <button class="ctrl-btn btn-start" id="start-btn" onclick="toggleTimer()">
-      ▶ START
-    </button>
+    <button class="ctrl-btn btn-start" id="start-btn" onclick="toggleTimer()">▶ START</button>
     <button class="ctrl-btn btn-reset" onclick="resetTimer()">↺ Reset</button>
     <button class="ctrl-btn btn-plus" onclick="addMinute()">+ 1 minuta</button>
   </div>
 </div>
 
-<!-- Firebase -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyC4mju3BijKBZc3eyWOYb7Q_kZdLV9knyY",
@@ -517,24 +482,18 @@
   const db = getDatabase(app);
   const timerRef = ref(db, 'timer');
 
-  // State
-  let totalSeconds = 0;
-  let remainingSeconds = 0;
-  let isRunning = false;
-  let localInterval = null;
-  let lastServerTime = null;
-  let mode = null;
-
-  // Determine mode
   const params = new URLSearchParams(window.location.search);
-  mode = params.get('mode');
+  const mode = params.get('mode');
 
-  function goMode(m) {
-    window.location.search = '?mode=' + m;
-  }
-  window.goMode = goMode;
+  let totalSeconds = 300;
+  let remainingSeconds = 300;
+  let isRunning = false;
+  let tickInterval = null;
+  let deadlineTs = 0; // unix seconds when timer hits 0
 
-  function showMode() {
+  window.goMode = m => { window.location.search = '?mode=' + m; };
+
+  function showApp() {
     document.getElementById('connecting').style.display = 'none';
     if (!mode) {
       document.getElementById('mode-select').style.display = 'flex';
@@ -546,174 +505,141 @@
     }
   }
 
-  // Format mm:ss
   function fmt(s) {
-    s = Math.max(0, s);
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+    s = Math.max(0, Math.round(s));
+    return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
   }
 
-  function getColorClass(remaining, total) {
-    if (remaining <= 0) return 'finished';
-    const pct = remaining / total;
-    if (pct <= 0.1 || remaining <= 30) return 'danger';
-    if (pct <= 0.25 || remaining <= 60) return 'warn';
+  function colorClass(rem, tot) {
+    if (rem <= 0) return 'finished';
+    const pct = tot > 0 ? rem / tot : 1;
+    if (pct <= 0.1 || rem <= 30) return 'danger';
+    if (pct <= 0.25 || rem <= 60) return 'warn';
     return '';
   }
 
-  function updateUI(remaining, total, running) {
-    const timeStr = fmt(remaining);
-    const cls = getColorClass(remaining, total);
-    const pct = total > 0 ? (remaining / total) * 100 : 100;
-    const pctStr = Math.max(0, pct) + '%';
-    const progressColor = cls === 'danger' || cls === 'finished' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--accent)';
+  function render() {
+    const rem = remainingSeconds;
+    const tot = totalSeconds;
+    const cls = colorClass(rem, tot);
+    const pct = tot > 0 ? Math.max(0, rem / tot) * 100 : 100;
+    const progressColor = (cls === 'danger' || cls === 'finished') ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--accent)';
 
     if (mode === 'display') {
-      const el = document.getElementById('display-time');
-      el.textContent = timeStr;
-      el.className = 'display-time ' + cls;
-      const prog = document.getElementById('display-progress');
-      prog.style.width = pctStr;
-      prog.style.background = progressColor;
-      const statusEl = document.getElementById('display-status');
-      if (remaining <= 0) statusEl.textContent = 'CZAS!';
-      else if (running) statusEl.textContent = 'TRWA';
-      else statusEl.textContent = 'PAUZA';
+      document.getElementById('display-time').textContent = fmt(rem);
+      document.getElementById('display-time').className = 'display-time ' + cls;
+      document.getElementById('display-progress').style.width = pct + '%';
+      document.getElementById('display-progress').style.background = progressColor;
+      document.getElementById('display-status').textContent = rem <= 0 ? 'CZAS!' : isRunning ? 'TRWA' : 'PAUZA';
     }
 
     if (mode === 'control') {
-      const el = document.getElementById('ctrl-time');
-      el.textContent = timeStr;
-      el.className = 'ctrl-time-display ' + (cls === 'finished' ? 'danger' : cls);
-      const prog = document.getElementById('ctrl-progress');
-      prog.style.width = pctStr;
-      prog.style.background = progressColor;
-      const startBtn = document.getElementById('start-btn');
-      if (running) {
-        startBtn.textContent = '⏸ PAUZA';
-        startBtn.classList.add('running');
+      document.getElementById('ctrl-time').textContent = fmt(rem);
+      document.getElementById('ctrl-time').className = 'ctrl-time-display ' + (cls === 'finished' ? 'danger' : cls);
+      document.getElementById('ctrl-progress').style.width = pct + '%';
+      document.getElementById('ctrl-progress').style.background = progressColor;
+      const btn = document.getElementById('start-btn');
+      if (isRunning) {
+        btn.textContent = '⏸ PAUZA';
+        btn.classList.add('running');
       } else {
-        startBtn.textContent = remaining <= 0 ? '▶ START' : '▶ WZNÓW';
-        startBtn.classList.remove('running');
+        btn.textContent = rem <= 0 ? '▶ START' : '▶ WZNÓW';
+        btn.classList.remove('running');
       }
     }
   }
 
-  // Local tick (smooth countdown between Firebase updates)
-  function startLocalTick() {
-    stopLocalTick();
-    localInterval = setInterval(() => {
-      if (isRunning && remainingSeconds > 0) {
-        remainingSeconds--;
-        updateUI(remainingSeconds, totalSeconds, isRunning);
-      }
-    }, 1000);
+  function startTick() {
+    stopTick();
+    tickInterval = setInterval(() => {
+      if (!isRunning || deadlineTs === 0) return;
+      const now = Date.now() / 1000;
+      remainingSeconds = Math.max(0, deadlineTs - now);
+      render();
+      if (remainingSeconds <= 0) stopTick();
+    }, 250); // update 4x/sec for smooth display
   }
 
-  function stopLocalTick() {
-    if (localInterval) { clearInterval(localInterval); localInterval = null; }
+  function stopTick() {
+    if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
   }
 
-  // Listen to Firebase
+  // Listen to Firebase — this is the single source of truth
   onValue(timerRef, (snapshot) => {
     const data = snapshot.val();
     if (!data) {
-      showMode();
+      // Initialize
+      writeState(300, 300, false, 0);
+      showApp();
       return;
     }
 
-    totalSeconds = data.total || 0;
+    totalSeconds = data.total || 300;
     isRunning = data.running || false;
+    deadlineTs = data.deadline || 0;
 
-    if (isRunning && data.startedAt) {
-      // Calculate remaining based on server startedAt + total
-      const elapsed = Math.floor((Date.now() - data.startedAt) / 1000);
-      remainingSeconds = Math.max(0, data.remaining - elapsed + (data.elapsedAtPause || 0));
-      // Actually simpler: store deadline
-      remainingSeconds = Math.max(0, data.deadline - Math.floor(Date.now() / 1000));
-      startLocalTick();
+    if (isRunning && deadlineTs > 0) {
+      remainingSeconds = Math.max(0, deadlineTs - Date.now() / 1000);
+      startTick();
     } else {
-      stopLocalTick();
+      stopTick();
       remainingSeconds = data.remaining || 0;
     }
 
-    updateUI(remainingSeconds, totalSeconds, isRunning);
-    showMode();
-  }, { onlyOnce: false });
+    render();
+    showApp();
+  });
 
-  // Write state to Firebase
   async function writeState(remaining, total, running, deadline) {
-    await set(timerRef, {
-      remaining,
-      total,
-      running,
-      deadline: deadline || 0,
-      updatedAt: Date.now()
-    });
+    await set(timerRef, { remaining, total, running, deadline, updatedAt: Date.now() });
   }
 
-  // Controls (only from control mode)
-  window.toggleTimer = async function() {
+  window.toggleTimer = async () => {
     if (isRunning) {
-      // Pause
-      stopLocalTick();
+      stopTick();
       await writeState(remainingSeconds, totalSeconds, false, 0);
     } else {
       if (remainingSeconds <= 0) return;
-      // Start/resume
-      const deadline = Math.floor(Date.now() / 1000) + remainingSeconds;
+      const deadline = Date.now() / 1000 + remainingSeconds;
       await writeState(remainingSeconds, totalSeconds, true, deadline);
     }
   };
 
-  window.resetTimer = async function() {
-    stopLocalTick();
+  window.resetTimer = async () => {
+    stopTick();
     await writeState(totalSeconds, totalSeconds, false, 0);
   };
 
-  window.addMinute = async function() {
-    const newRemaining = remainingSeconds + 60;
-    const newTotal = Math.max(totalSeconds, newRemaining);
+  window.addMinute = async () => {
+    const newRem = remainingSeconds + 60;
+    const newTot = Math.max(totalSeconds, newRem);
     if (isRunning) {
-      const deadline = Math.floor(Date.now() / 1000) + newRemaining;
-      await writeState(newRemaining, newTotal, true, deadline);
+      const deadline = Date.now() / 1000 + newRem;
+      await writeState(newRem, newTot, true, deadline);
     } else {
-      await writeState(newRemaining, newTotal, false, 0);
+      await writeState(newRem, newTot, false, 0);
     }
   };
 
-  window.setPreset = async function(minutes) {
+  window.setPreset = async (minutes) => {
     const secs = minutes * 60;
-    stopLocalTick();
+    stopTick();
     await writeState(secs, secs, false, 0);
   };
 
-  window.setCustomTime = async function() {
+  window.setCustomTime = async () => {
     const m = parseInt(document.getElementById('input-min').value) || 0;
     const s = parseInt(document.getElementById('input-sec').value) || 0;
     const total = m * 60 + s;
     if (total <= 0) return;
-    stopLocalTick();
+    stopTick();
     await writeState(total, total, false, 0);
   };
 
-  // Fullscreen
-  window.toggleFullscreen = function() {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
+  window.toggleFullscreen = () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
   };
-
-  // Initial state if nothing in DB
-  get(timerRef).then(snap => {
-    if (!snap.val()) {
-      writeState(300, 300, false, 0);
-    }
-  });
-
 </script>
 </body>
 </html>
