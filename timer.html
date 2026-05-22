@@ -490,6 +490,7 @@
     <button class="ctrl-btn btn-start" id="start-btn" onclick="toggleTimer()">▶ START</button>
     <button class="ctrl-btn btn-reset" onclick="resetTimer()">↺ Reset</button>
     <button class="ctrl-btn btn-plus" onclick="addMinute()">+ 1 minuta</button>
+    <button class="ctrl-btn btn-reset" onclick="testVibrate()" style="grid-column:1/-1;font-size:13px;padding:14px">📳 Test wibracji</button>
   </div>
 </div>
 
@@ -697,6 +698,15 @@
     if (total <= 0) return;
     stopTick();
     await writeState(total, total, false, 0);
+  };
+
+  window.testVibrate = () => {
+    if (navigator.vibrate) {
+      const ok = navigator.vibrate([300, 100, 300, 100, 300]);
+      alert("vibrate() zwróciło: " + ok);
+    } else {
+      alert("navigator.vibrate niedostępny");
+    }
   };
 
   window.toggleFullscreen = () => {
