@@ -78,6 +78,32 @@
     width: 100%;
   }
 
+  .display-controls {
+    position: absolute;
+    bottom: 32px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .display-ctrl-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .display-ctrl-btn:hover { border-color: var(--text); color: var(--text); }
+  .display-ctrl-btn.primary { border-color: var(--accent); color: var(--accent); }
+  .display-ctrl-btn.primary:hover { background: var(--accent); color: #000; }
+
   .fullscreen-btn {
     position: absolute;
     top: 24px;
@@ -409,6 +435,10 @@
   <div class="display-progress" id="display-progress"></div>
   <div class="display-time" id="display-time">--:--</div>
   <div class="display-status" id="display-status">GOTOWY</div>
+  <div class="display-controls">
+    <button class="display-ctrl-btn primary" id="display-toggle-btn" onclick="toggleTimer()">▶ Start</button>
+    <button class="display-ctrl-btn" onclick="resetTimer()">↺ Reset</button>
+  </div>
   <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ PEŁNY EKRAN</button>
 </div>
 
@@ -489,9 +519,27 @@
   let remainingSeconds = 300;
   let isRunning = false;
   let tickInterval = null;
+  let notified60 = false;
+  let notified0 = false;
+
+  function requestNotifPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }
+
+  function notify(title, body) {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification(title, { body, icon: "https://www.google.com/s2/favicons?domain=timer.app&sz=64" });
+    }
+  }
   let deadlineTs = 0; // unix seconds when timer hits 0
 
-  window.goMode = m => { window.location.search = '?mode=' + m; };
+  window.goMode = m => { window.location.search = "?mode=" + m; };
+
+  // Ask for notification permission immediately
+  if (mode === "control") requestNotifPermission();
 
   function showApp() {
     document.getElementById('connecting').style.display = 'none';
@@ -531,6 +579,8 @@
       document.getElementById('display-progress').style.width = pct + '%';
       document.getElementById('display-progress').style.background = progressColor;
       document.getElementById('display-status').textContent = rem <= 0 ? 'CZAS!' : isRunning ? 'TRWA' : 'PAUZA';
+      const dtBtn = document.getElementById('display-toggle-btn');
+      if (dtBtn) { dtBtn.textContent = isRunning ? '⏸ Pauza' : (rem <= 0 ? '▶ Start' : '▶ Wznów'); }
     }
 
     if (mode === 'control') {
@@ -556,7 +606,16 @@
       const now = Date.now() / 1000;
       remainingSeconds = Math.max(0, deadlineTs - now);
       render();
-      if (remainingSeconds <= 0) stopTick();
+      // Notifications
+      if (mode === "control" && remainingSeconds <= 60 && remainingSeconds > 0 && !notified60) {
+        notified60 = true;
+        notify("⏰ Minuta do końca!", "Zostało mniej niż 60 sekund.");
+      }
+      if (mode === "control" && remainingSeconds <= 0 && !notified0) {
+        notified0 = true;
+        notify("🔔 Czas minął!", "Timer dobiegł końca.");
+        stopTick();
+      }
     }, 250); // update 4x/sec for smooth display
   }
 
@@ -600,12 +659,14 @@
       await writeState(remainingSeconds, totalSeconds, false, 0);
     } else {
       if (remainingSeconds <= 0) return;
+      notified60 = false; notified0 = false;
       const deadline = Date.now() / 1000 + remainingSeconds;
       await writeState(remainingSeconds, totalSeconds, true, deadline);
     }
   };
 
   window.resetTimer = async () => {
+    notified60 = false; notified0 = false;
     stopTick();
     await writeState(totalSeconds, totalSeconds, false, 0);
   };
