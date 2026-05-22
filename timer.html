@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Prezentacja Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #222222;
+    --text: #f0f0f0;
+    --muted: #555;
+    --accent: #e8ff47;
+    --accent-dim: #c8df27;
+    --danger: #ff4757;
+    --safe: #2ed573;
+    --warn: #ffa502;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ===== DISPLAY MODE ===== */
+  #display-mode {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .display-time {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(120px, 22vw, 320px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    transition: color 0.5s ease;
+    color: var(--text);
+  }
+
+  .display-time.warn { color: var(--warn); }
+  .display-time.danger { color: var(--danger); }
+  .display-time.finished { color: var(--danger); animation: pulse-danger 1s ease infinite; }
+
+  @keyframes pulse-danger {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  .display-status {
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(14px, 2vw, 22px);
+    font-weight: 300;
+    color: var(--muted);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-top: 24px;
+  }
+
+  .display-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: var(--accent);
+    transition: width 1s linear, background 0.5s ease;
+    width: 100%;
+  }
+
+  .fullscreen-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .fullscreen-btn:hover { border-color: var(--muted); color: var(--text); }
+
+  .qr-area {
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .qr-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ===== CONTROL MODE ===== */
+  #control-mode {
+    display: none;
+    width: 100vw;
+    min-height: 100vh;
+    flex-direction: column;
+    padding: 24px 20px 40px;
+    gap: 20px;
+    overflow-y: auto;
+  }
+
+  .ctrl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ctrl-title {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .ctrl-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .ctrl-status-dot.connected { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+
+  /* Big time display on controller */
+  .ctrl-time-display {
+    font-family: 'DM Mono', monospace;
+    font-size: clamp(64px, 18vw, 100px);
+    font-weight: 300;
+    text-align: center;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    padding: 20px 0 16px;
+    transition: color 0.3s;
+  }
+  .ctrl-time-display.warn { color: var(--warn); }
+  .ctrl-time-display.danger { color: var(--danger); }
+
+  /* Progress bar */
+  .ctrl-progress-wrap {
+    width: 100%;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .ctrl-progress-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 1s linear, background 0.5s;
+    width: 100%;
+  }
+
+  /* Preset buttons */
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .presets-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .preset-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px 8px;
+    border-radius: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .preset-btn:active { background: var(--accent); color: #000; border-color: var(--accent); transform: scale(0.96); }
+
+  /* Custom time input */
+  .custom-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .time-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+
+  .time-inputs input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 400;
+    width: 44px;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .time-inputs input::-webkit-inner-spin-button,
+  .time-inputs input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .time-inputs input::placeholder { color: var(--muted); }
+
+  .time-sep {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .time-unit-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .time-input-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .set-btn {
+    background: var(--accent);
+    border: none;
+    color: #000;
+    padding: 0 20px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .set-btn:active { background: var(--accent-dim); transform: scale(0.96); }
+
+  /* Main controls */
+  .main-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .ctrl-btn {
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.05em;
+  }
+  .ctrl-btn:active { transform: scale(0.97); }
+
+  .btn-start {
+    background: var(--safe);
+    border-color: var(--safe);
+    color: #000;
+    grid-column: 1 / -1;
+    font-size: 18px;
+    padding: 24px;
+  }
+  .btn-start.running {
+    background: var(--surface);
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+
+  .btn-reset {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--muted);
+  }
+  .btn-reset:active { border-color: var(--text); color: var(--text); }
+
+  .btn-plus {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-plus:active { border-color: var(--accent); color: var(--accent); }
+
+  /* Connecting overlay */
+  #connecting {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 100;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .connecting-text {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  /* Mode selector (landing) */
+  #mode-select {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 32px;
+  }
+
+  .mode-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    color: var(--muted);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  .mode-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+  }
+
+  .mode-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 20px 24px;
+    border-radius: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mode-btn:hover { border-color: var(--accent); }
+  .mode-btn span { font-size: 12px; color: var(--muted); font-weight: 300; }
+</style>
+</head>
+<body>
+
+<!-- Connecting overlay -->
+<div id="connecting">
+  <div class="spinner"></div>
+  <div class="connecting-text">Łączenie z Firebase…</div>
+</div>
+
+<!-- Mode select (if no ?mode param) -->
+<div id="mode-select" style="display:none">
+  <div class="mode-title">Timer · Prezentacja</div>
+  <div class="mode-buttons">
+    <button class="mode-btn" onclick="goMode('display')">
+      📺 Widok ekranu
+      <span>Duży zegar — otwórz na projektorze/komputerze</span>
+    </button>
+    <button class="mode-btn" onclick="goMode('control')">
+      📱 Pilot
+      <span>Sterowanie — otwórz na telefonie</span>
+    </button>
+  </div>
+</div>
+
+<!-- DISPLAY MODE -->
+<div id="display-mode">
+  <div class="display-progress" id="display-progress"></div>
+  <div class="display-time" id="display-time">00:00</div>
+  <div class="display-status" id="display-status">GOTOWY</div>
+  <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ PEŁNY EKRAN</button>
+</div>
+
+<!-- CONTROL MODE -->
+<div id="control-mode">
+  <div class="ctrl-header">
+    <div class="ctrl-title">Timer · Pilot</div>
+    <div class="ctrl-status-dot" id="status-dot"></div>
+  </div>
+
+  <div class="ctrl-time-display" id="ctrl-time">00:00</div>
+
+  <div class="ctrl-progress-wrap">
+    <div class="ctrl-progress-bar" id="ctrl-progress"></div>
+  </div>
+
+  <div>
+    <div class="section-label">Szybki wybór</div>
+    <div class="presets-grid">
+      <button class="preset-btn" onclick="setPreset(1)">1 min</button>
+      <button class="preset-btn" onclick="setPreset(2)">2 min</button>
+      <button class="preset-btn" onclick="setPreset(3)">3 min</button>
+      <button class="preset-btn" onclick="setPreset(5)">5 min</button>
+      <button class="preset-btn" onclick="setPreset(7)">7 min</button>
+      <button class="preset-btn" onclick="setPreset(10)">10 min</button>
+      <button class="preset-btn" onclick="setPreset(15)">15 min</button>
+      <button class="preset-btn" onclick="setPreset(20)">20 min</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-label">Własny czas</div>
+    <div class="custom-input-row">
+      <div class="time-inputs">
+        <div class="time-input-group">
+          <input type="number" id="input-min" min="0" max="99" placeholder="00" value="5">
+          <div class="time-unit-label">min</div>
+        </div>
+        <div class="time-sep">:</div>
+        <div class="time-input-group">
+          <input type="number" id="input-sec" min="0" max="59" placeholder="00" value="0">
+          <div class="time-unit-label">sek</div>
+        </div>
+      </div>
+      <button class="set-btn" onclick="setCustomTime()">Ustaw</button>
+    </div>
+  </div>
+
+  <div class="main-controls">
+    <button class="ctrl-btn btn-start" id="start-btn" onclick="toggleTimer()">
+      ▶ START
+    </button>
+    <button class="ctrl-btn btn-reset" onclick="resetTimer()">↺ Reset</button>
+    <button class="ctrl-btn btn-plus" onclick="addMinute()">+ 1 minuta</button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, set, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC4mju3BijKBZc3eyWOYb7Q_kZdLV9knyY",
+    authDomain: "prezentacja-timer.firebaseapp.com",
+    databaseURL: "https://prezentacja-timer-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "prezentacja-timer",
+    storageBucket: "prezentacja-timer.firebasestorage.app",
+    messagingSenderId: "704554475955",
+    appId: "1:704554475955:web:9bb5ccb45b58fb70deabc6",
+    measurementId: "G-BC6WECR0K8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const timerRef = ref(db, 'timer');
+
+  // State
+  let totalSeconds = 0;
+  let remainingSeconds = 0;
+  let isRunning = false;
+  let localInterval = null;
+  let lastServerTime = null;
+  let mode = null;
+
+  // Determine mode
+  const params = new URLSearchParams(window.location.search);
+  mode = params.get('mode');
+
+  function goMode(m) {
+    window.location.search = '?mode=' + m;
+  }
+  window.goMode = goMode;
+
+  function showMode() {
+    document.getElementById('connecting').style.display = 'none';
+    if (!mode) {
+      document.getElementById('mode-select').style.display = 'flex';
+    } else if (mode === 'display') {
+      document.getElementById('display-mode').style.display = 'flex';
+    } else {
+      document.getElementById('control-mode').style.display = 'flex';
+      document.getElementById('status-dot').classList.add('connected');
+    }
+  }
+
+  // Format mm:ss
+  function fmt(s) {
+    s = Math.max(0, s);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  function getColorClass(remaining, total) {
+    if (remaining <= 0) return 'finished';
+    const pct = remaining / total;
+    if (pct <= 0.1 || remaining <= 30) return 'danger';
+    if (pct <= 0.25 || remaining <= 60) return 'warn';
+    return '';
+  }
+
+  function updateUI(remaining, total, running) {
+    const timeStr = fmt(remaining);
+    const cls = getColorClass(remaining, total);
+    const pct = total > 0 ? (remaining / total) * 100 : 100;
+    const pctStr = Math.max(0, pct) + '%';
+    const progressColor = cls === 'danger' || cls === 'finished' ? 'var(--danger)' : cls === 'warn' ? 'var(--warn)' : 'var(--accent)';
+
+    if (mode === 'display') {
+      const el = document.getElementById('display-time');
+      el.textContent = timeStr;
+      el.className = 'display-time ' + cls;
+      const prog = document.getElementById('display-progress');
+      prog.style.width = pctStr;
+      prog.style.background = progressColor;
+      const statusEl = document.getElementById('display-status');
+      if (remaining <= 0) statusEl.textContent = 'CZAS!';
+      else if (running) statusEl.textContent = 'TRWA';
+      else statusEl.textContent = 'PAUZA';
+    }
+
+    if (mode === 'control') {
+      const el = document.getElementById('ctrl-time');
+      el.textContent = timeStr;
+      el.className = 'ctrl-time-display ' + (cls === 'finished' ? 'danger' : cls);
+      const prog = document.getElementById('ctrl-progress');
+      prog.style.width = pctStr;
+      prog.style.background = progressColor;
+      const startBtn = document.getElementById('start-btn');
+      if (running) {
+        startBtn.textContent = '⏸ PAUZA';
+        startBtn.classList.add('running');
+      } else {
+        startBtn.textContent = remaining <= 0 ? '▶ START' : '▶ WZNÓW';
+        startBtn.classList.remove('running');
+      }
+    }
+  }
+
+  // Local tick (smooth countdown between Firebase updates)
+  function startLocalTick() {
+    stopLocalTick();
+    localInterval = setInterval(() => {
+      if (isRunning && remainingSeconds > 0) {
+        remainingSeconds--;
+        updateUI(remainingSeconds, totalSeconds, isRunning);
+      }
+    }, 1000);
+  }
+
+  function stopLocalTick() {
+    if (localInterval) { clearInterval(localInterval); localInterval = null; }
+  }
+
+  // Listen to Firebase
+  onValue(timerRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      showMode();
+      return;
+    }
+
+    totalSeconds = data.total || 0;
+    isRunning = data.running || false;
+
+    if (isRunning && data.startedAt) {
+      // Calculate remaining based on server startedAt + total
+      const elapsed = Math.floor((Date.now() - data.startedAt) / 1000);
+      remainingSeconds = Math.max(0, data.remaining - elapsed + (data.elapsedAtPause || 0));
+      // Actually simpler: store deadline
+      remainingSeconds = Math.max(0, data.deadline - Math.floor(Date.now() / 1000));
+      startLocalTick();
+    } else {
+      stopLocalTick();
+      remainingSeconds = data.remaining || 0;
+    }
+
+    updateUI(remainingSeconds, totalSeconds, isRunning);
+    showMode();
+  }, { onlyOnce: false });
+
+  // Write state to Firebase
+  async function writeState(remaining, total, running, deadline) {
+    await set(timerRef, {
+      remaining,
+      total,
+      running,
+      deadline: deadline || 0,
+      updatedAt: Date.now()
+    });
+  }
+
+  // Controls (only from control mode)
+  window.toggleTimer = async function() {
+    if (isRunning) {
+      // Pause
+      stopLocalTick();
+      await writeState(remainingSeconds, totalSeconds, false, 0);
+    } else {
+      if (remainingSeconds <= 0) return;
+      // Start/resume
+      const deadline = Math.floor(Date.now() / 1000) + remainingSeconds;
+      await writeState(remainingSeconds, totalSeconds, true, deadline);
+    }
+  };
+
+  window.resetTimer = async function() {
+    stopLocalTick();
+    await writeState(totalSeconds, totalSeconds, false, 0);
+  };
+
+  window.addMinute = async function() {
+    const newRemaining = remainingSeconds + 60;
+    const newTotal = Math.max(totalSeconds, newRemaining);
+    if (isRunning) {
+      const deadline = Math.floor(Date.now() / 1000) + newRemaining;
+      await writeState(newRemaining, newTotal, true, deadline);
+    } else {
+      await writeState(newRemaining, newTotal, false, 0);
+    }
+  };
+
+  window.setPreset = async function(minutes) {
+    const secs = minutes * 60;
+    stopLocalTick();
+    await writeState(secs, secs, false, 0);
+  };
+
+  window.setCustomTime = async function() {
+    const m = parseInt(document.getElementById('input-min').value) || 0;
+    const s = parseInt(document.getElementById('input-sec').value) || 0;
+    const total = m * 60 + s;
+    if (total <= 0) return;
+    stopLocalTick();
+    await writeState(total, total, false, 0);
+  };
+
+  // Fullscreen
+  window.toggleFullscreen = function() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  // Initial state if nothing in DB
+  get(timerRef).then(snap => {
+    if (!snap.val()) {
+      writeState(300, 300, false, 0);
+    }
+  });
+
+</script>
+</body>
+</html>
